@@ -4,36 +4,137 @@ Public WorkSpacePathSystem As String
 Public WorkbookName As String
 Public RScriptPath As String
 
-Sub SetupTURF()
-
+Sub ImportUtils()
+    Dim filePath As Variant
     Dim ws As Worksheet
-    Set ws = ThisWorkbook.Sheets("Settings")
+    Dim csvWb As Workbook
+    Dim csvWs As Worksheet
+    Dim wb As Workbook
     
-    '------------------------------------------------------------------
-    ' 1. Read inputs: Methodology, Number of prods, Add none option
-    '------------------------------------------------------------------
-    Dim methodology As String
-    methodology = ws.Range("B3").Value
-
+    ' Prompt the user to select a CSV file
+    filePath = Application.GetOpenFilename("CSV Files (*.csv), *.csv", , "Select CSV File")
+    If filePath = False Then Exit Sub  ' Exit if user cancels
+    
+    Set wb = ThisWorkbook
+    
+    ' Check if the "Utilities" sheet exists; if so, clear it, otherwise add a new sheet
+    On Error Resume Next
+    Set ws = wb.Sheets("Utilities")
+    On Error GoTo 0
+    If ws Is Nothing Then
+        Set ws = wb.Sheets.Add(After:=wb.Sheets(wb.Sheets.Count))
+        ws.Name = "Utilities"
+    Else
+        ws.Cells.Clear
+    End If
+    
+    ' Open the CSV file (it will open as a new workbook)
+    Set csvWb = Workbooks.Open(filePath)
+    Set csvWs = csvWb.Sheets(1)
+    
+    ' Copy the entire used range from the CSV sheet into the "Utilities" sheet
+    csvWs.UsedRange.Copy Destination:=ws.Range("A1")
+    
+    ' Change headers
+    ws.Cells(1, 1).Value = "id"
+    ws.Cells(1, 2).Value = "weight"
+    
     Dim numProds As Long
-    numProds = ws.Range("D5").Value
+    numProds = wb.Sheets("Main").Range("num_prods")
+    
+    Dim addNone As Boolean
+    addNone = wb.Sheets("Main").Range("add_none")
+    
+    If addNone Then
+        numProds = numProds + 1
+    End If
+    
+    Dim lastCol As Long
+    lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    If (lastCol - 2) <> numProds Then
+        csvWb.Close SaveChanges:=False
+        MsgBox "Utilities file should contain " & (numProds + 2) & " columns"
+        Exit Sub
+    End If
+    
+    Dim methodology As String
+    methodology = wb.Sheets("Main").Range("methodology")
+    If methodology <> "CBC" Then
+        If lastCol > 2 Then
+            For i = 3 To lastCol
+                ws.Cells(1, i).Value = "item" & (i - 2)
+            Next i
+        End If
+    End If
+    
+    ' Clear all values in the second column (leaving the header intact)
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    If lastRow > 1 Then
+        ws.Range(ws.Cells(2, 2), ws.Cells(lastRow, 2)).Value = 1
+    End If
+    
+    ' Close the CSV workbook without saving changes
+    csvWb.Close SaveChanges:=False
+    
+    ws.Activate
+    MsgBox "All respondent weights have been set to 1. Remember to update the 'weight' column in the 'Utilities' sheet if you are using any respondent weights.", vbInformation, "Import Complete"
+End Sub
 
-    Dim addNoneOption As Boolean
-    addNoneOption = ws.Range("D6").Value
+Sub SetupTURF()
+    
+    Dim methodology As String
+    methodology = ThisWorkbook.Sheets("Main").Range("methodology").Value
+    
+    Dim numProds As Long
+    numProds = ThisWorkbook.Sheets("Main").Range("num_prods").Value
+
+    Dim addNone As Boolean
+    addNone = ThisWorkbook.Sheets("Main").Range("add_none").Value
+    
+    If methodology = "MaxDiff" And addNone Then
+        MsgBox "For MaxDiff, Add none should be FALSE."
+        Exit Sub
+    End If
+    
+    If methodology = "Anchored MaxDiff" And Not addNone Then
+        MsgBox "For Anchored MaxDiff, Add none should be TRUE."
+        Exit Sub
+    End If
+    
+    Dim ws As Worksheet
+    If methodology = "CBC" Then
+        ThisWorkbook.Sheets("CBC").Visible = True
+        ThisWorkbook.Sheets("MaxDiff").Visible = False
+        
+        Set ws = ThisWorkbook.Sheets("CBC")
+        
+        ws.Activate
+        ws.Range("cbc_calc").Value = "SoP"
+        ws.Range("cbc_kpi").Value = "Preference"
+    Else
+        ThisWorkbook.Sheets("CBC").Visible = False
+        ThisWorkbook.Sheets("MaxDiff").Visible = True
+        
+        Set ws = ThisWorkbook.Sheets("MaxDiff")
+        
+        ws.Activate
+        ws.Range("maxdiff_calc").Value = "SoP"
+    End If
     
     '------------------------------------------------------------------
-    ' 2. Reset Calculation method and Optimization KPI
+    ' Reset Calculation method and Optimization KPI
     '------------------------------------------------------------------
-    ws.Range("B13").Value = "SoP"
-    ws.Range("B16").Value = "Preference Share"
+    'ws.Range("B13").Value = "SoP"
+    'ws.Range("B16").Value = "Preference Share"
 
     '------------------------------------------------------------------
-    ' 3. Clear the area for the new table
+    ' Clear the area for the new table
     '------------------------------------------------------------------
     ws.Range("G1:N1000").ClearContents
 
     '------------------------------------------------------------------
-    ' 4. Create the correct column headers based on methodology
+    ' Create the correct column headers based on methodology
     '------------------------------------------------------------------
     ws.Range("G3").Value = "Item"
     ws.Range("H3").Value = "Owner"
@@ -55,7 +156,7 @@ Sub SetupTURF()
     End If
 
     '------------------------------------------------------------------
-    ' 5. Add products Prod1 to ProdN and fill default values
+    ' Add products Prod1 to ProdN and fill default values
     '------------------------------------------------------------------
     Dim i As Long
     For i = 1 To numProds
@@ -78,9 +179,9 @@ Sub SetupTURF()
     Next i
 
     '------------------------------------------------------------------
-    ' 6. If "Add none option" is TRUE, add a "None" row at the end
+    ' If "Add none option" is TRUE, add a "None" row at the end
     '------------------------------------------------------------------
-    If addNoneOption Then
+    If addNone Then
         Dim noneRow As Long
         noneRow = numProds + 4
 
