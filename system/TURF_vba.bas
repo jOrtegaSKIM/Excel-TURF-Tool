@@ -247,7 +247,7 @@ End Function
 Sub SaveWorkSpaceVariables()
     ' Save the current workbook path to global variable
     WorkSpacePath = ThisWorkbook.Path
-    WorkSpacePathSystem = WorkSpacePath ' & Application.PathSeparator & "system"
+    WorkSpacePathSystem = WorkSpacePath & Application.PathSeparator & "system"
 
     ' Save the name of current workbook to global variable
     WorkbookName = ThisWorkbook.Name
@@ -258,25 +258,46 @@ Sub SaveWorkSpaceVariables()
 End Sub
 
 Sub RunRScript()
-    Dim objShell As Object
-    Dim RScriptFile As String
-    Dim Command As String
-    Dim k As Long
     
-    k = 3
+    Dim k As Variant
+    k = InputBox("Please enter the number of items to draw:", "Numeric Input")
+    
+    If k = "" Then
+        MsgBox "No value provided."
+        Exit Sub
+    End If
+    
+    Dim methodology As String
+    methodology = ThisWorkbook.Sheets("Main").Range("methodology").Value
+    
+    Dim ws As Worksheet
+    If methodology = "CBC" Then
+        Set ws = ThisWorkbook.Sheets("CBC")
+    Else
+        Set ws = ThisWorkbook.Sheets("MaxDiff")
+    End If
+    
+    Dim maxK As Long
+    maxK = Application.WorksheetFunction.CountIfs(ws.Range("H:H"), "Client", Range("I:I"), "No")
+    
+    If Not IsNumeric(k) Or k > maxK Or k < 0 Then
+        MsgBox "k should be a number greater than 0 and less than " & maxK
+        Exit Sub
+    End If
     
     ' Create WScript.Shell object
+    Dim objShell As Object
     Set objShell = CreateObject("WScript.Shell")
     
     ' Full path to the R script you want to execute
+    Dim RScriptFile As String
     RScriptFile = WorkSpacePathSystem & Application.PathSeparator & "TURF_linking.R"
     
     ' Build the command - using cmd /k keeps the window open
+    Dim Command As String
     Command = vbDoubleQuote & RScriptPath & vbDoubleQuote & " " & RScriptFile & " " & WorkSpacePathSystem & " " & k
     Command = Replace(Command, Chr(10), "") ' Hard fix for any line break
     
-    Dim ws As Worksheet
-    Set ws = ThisWorkbook.Sheets("Settings")
     ws.Range("Q3").Value = Command
     
     ' Run the command and keep the window open
