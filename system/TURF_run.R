@@ -82,6 +82,4 @@ if (length(k) == 1) {
   results_all[,-1] <- reorder_items(results_all[,-1])
 }
 
-names(results) <- sapply(k, function(ki) paste0("k = ",ki))
-openxlsx::write.xlsx(x=results, 
-                     file=paste0(format(Sys.time(),"%Y%m%d_%I%M%p"), "_results.xlsx"), rowNames=FALSE) 
+write.csv(results,"TURF_results.csv")
