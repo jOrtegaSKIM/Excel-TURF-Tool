@@ -82,4 +82,4 @@ if (length(k) == 1) {
   results_all[,-1] <- reorder_items(results_all[,-1])
 }
 
-write.csv(results,"TURF_results.csv")
+write.csv(results[[2]],"TURF_results.csv", row.names=F)
