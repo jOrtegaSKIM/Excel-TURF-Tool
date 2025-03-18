@@ -1,7 +1,10 @@
+library(renv)
+renv::restore()
+
 # Get command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
-working_dir <<- args[1]
+#working_dir <<- args[1]
 k <<- as.numeric(args[2])
 
 # Set working directory
